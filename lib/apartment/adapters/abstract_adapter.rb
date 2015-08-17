@@ -50,7 +50,7 @@ module Apartment
       #   Note alias_method here doesn't work with inheritence apparently ??
       #
       def current
-        Apartment.connection.current_database
+        Thread.current[:current_tenant] || Apartment.connection.current_database
       end
 
       #   Return the original public tenant
@@ -133,6 +133,7 @@ module Apartment
       #
       def reset
         Apartment.establish_connection @config
+        Thread.current[:current_tenant] = @config[:database]
       end
 
       #   Load the rails seed file into the db
@@ -163,8 +164,9 @@ module Apartment
       def connect_to_new(tenant)
         Apartment.establish_connection multi_tenantify(tenant)
         Apartment.connection.active?   # call active? to manually check if this connection is valid
-
+        Thread.current[:current_tenant] = tenant
       rescue *rescuable_exceptions
+        Thread.current[:current_tenant] = @config[:database]
         raise TenantNotFound, "The tenant #{environmentify(tenant)} cannot be found."
       end
 
